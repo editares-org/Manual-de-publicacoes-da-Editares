@@ -1,0 +1,31 @@
+// isic-editares-en.typst.template
+
+#let horizontalrule = line(start: (25%,0%), end: (75%,0%))
+
+#show terms.item: it => block(breakable: false)[
+  #text(weight: "bold")[#it.term]
+  #block(inset: (left: 1.5em, top: -0.4em))[#it.description]
+]
+
+#set table(
+  inset: 6pt,
+  stroke: none
+)
+
+#show figure.where(
+  kind: table
+): set figure.caption(position: $if(table-caption-position)$$table-caption-position$$else$top$endif$)
+
+#show figure.where(
+  kind: image
+): set figure.caption(position: $if(figure-caption-position)$$figure-caption-position$$else$bottom$endif$)
+
+#import "style.typ": book-setup, frase, assinatura
+#import "pages1234.typ": pages1234
+#import "@preview/in-dexter:0.7.2": make-index, index
+
+#book-setup[
+  #pages1234()
+  #counter(page).update(5) // começa a numeração no miolo
+  $body$
+]
