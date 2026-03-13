@@ -1,0 +1,93 @@
+# Rakefile
+
+
+METADATA = "metadata.yaml"
+TEMPLATE = "editares-pt.typst.template"
+STYLE    = "style.typ"
+ORIGINAL_PDF = "../original/Manual-de-publicacoes-da-Editares-2a-ed.pdf"
+ORIGINAL_word = ORIGINAL_PDF.ext('.docx')
+MAIN_FILE = "main.md"
+BOOK_PDF = "Manual-de-publicacoes-da-Editares-2026.pdf"
+BOOK_TYPST = BOOK_PDF.ext('.typ')
+
+namespace :original do
+  desc "Extract text and media from the original Word document"
+  task :extract do
+    sh "pandoc #{ORIGINAL_word} -o #{MAIN_FILE.ext('.original.md')} --extract-media=. --wrap=none"
+  end
+
+end
+
+file "sections.md" => ["main.md"] do |t|
+  sh %(cat main.md | grep --group-separator="" \\# -A 4 -B1 > #{t.name})
+end
+
+file "book-layout.typ" => ["layout.md", METADATA, TEMPLATE, STYLE] do |t|
+  sh %(pandoc layout.md \
+    -f markdown+raw_attribute \
+    -t typst \
+    -s \
+    --metadata-file=#{METADATA} \
+    --template=#{TEMPLATE} \
+    --wrap=none \
+    -o #{t.name})
+end
+
+file "book-sections.typ" => ['sections.md', METADATA, TEMPLATE, STYLE] do |t|
+  sh %(pandoc sections.md \
+    -f markdown+raw_attribute \
+    -t typst \
+    -s \
+    --metadata-file=#{METADATA} \
+    --template=#{TEMPLATE} \
+    --wrap=none \
+    -o #{t.name})
+end
+
+file BOOK_TYPST => ['main.md', METADATA, TEMPLATE, STYLE] do |t|
+  sh %(pandoc main.md \
+    -f markdown+raw_attribute \
+    -t typst \
+    -s \
+    --metadata-file=#{METADATA} \
+    --template=#{TEMPLATE} \
+    --wrap=none \
+    -o #{t.name})
+end
+
+file "book-layout.pdf" => ["book-layout.typ", TEMPLATE, STYLE, 'layout.md', METADATA, "pages1234.typ"] do |t|
+  sh "typst compile #{t.prerequisites.first} #{t.name}"
+end
+
+file "book-sections.pdf" => ["book-sections.typ", TEMPLATE, STYLE, 'sections.md', METADATA, "pages1234.typ"] do |t|
+  sh "typst compile #{t.prerequisites.first} #{t.name}"
+end
+
+file BOOK_PDF => [BOOK_TYPST, TEMPLATE, STYLE, 'main.md', METADATA, "pages1234.typ"] do |t|
+  sh "typst compile #{t.prerequisites.first} #{t.name}"
+end
+
+desc "Compile the layout and generate the PDF"
+task :layout => ["book-layout.pdf"]
+
+namespace :sections do
+  desc "Extract sections from main and generate a PDF with all sections but only the first paragraph of each section"
+  task :new => ["sections.md"]
+
+  desc "Extract sections from main and generate a PDF with all sections but only the first paragraph of each section"
+  task :build => ["book-sections.pdf"]
+end
+
+task :sections => ["sections:build"]
+
+desc "Extract sections from main and generate a PDF with all sections but only the first paragraph of each section"
+task :book => [BOOK_PDF]
+
+desc "Install fonts"
+task :fonts do
+  Dir.chdir("Fonts") do
+    sh "./install-fonts.sh"
+  end
+end
+
+task :default => :sections
